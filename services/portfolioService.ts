@@ -139,7 +139,7 @@ export const fetchCurrentPrices = async (symbols: string[], forceRefresh: boolea
   try {
     await Promise.all(uniqueSymbols.map(async (symbol) => {
       try {
-        const isProd = (import.meta as any).env.PROD;
+        const isProd = import.meta.env.PROD;
         const endpoint = isProd 
           ? `/api/yahoo-proxy?symbol=${symbol}` 
           : `/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`;
