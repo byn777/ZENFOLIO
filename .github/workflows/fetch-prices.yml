@@ -1,0 +1,41 @@
+name: Update Live Prices
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Every 30 minutes
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          
+      - name: Run Fetch Script
+        run: node scripts/fetch-prices.js
+        
+      - name: Commit and Push to prices-data branch
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          
+          # Create or switch to prices-data branch
+          git checkout -B prices-data
+          
+          # Add the generated file
+          git add public/live_prices.json
+          
+          # Commit if there are changes
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update live prices"
+          
+          # Push to prices-data branch forcefully
+          git push origin prices-data -f

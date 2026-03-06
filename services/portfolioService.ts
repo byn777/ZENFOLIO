@@ -131,32 +131,150 @@ const getCachedPrices = (): { prices: Record<string, number>, timestamp: string 
 
 export const fetchCurrentPrices = async (symbols: string[], forceRefresh: boolean = false): Promise<Record<string, number>> => {
   const cached = getCachedPrices();
-  if (!forceRefresh && cached) return cached.prices;
-
-  const uniqueSymbols = Array.from(new Set([...symbols, "USDTWD=X"]));
-  const finalPrices: Record<string, number> = { ...MOCK_PRICES };
   
+  // Check if all requested symbols are in the cache AND their cached value is valid (>0)
+  // This prevents 'poisoned' caches from previous failures (where price was saved as 0) from blocking correctly fetching via the new proxies.
+  const allCached = !forceRefresh && cached && symbols.every(sym => cached.prices[sym] && cached.prices[sym] > 0);
+  if (allCached) return cached.prices;
+
+  // Filter out any poisoned 0s from the cache before merging, so we gracefully fallback to MOCK_PRICES if the live fetch fails
+  const validCachedPrices: Record<string, number> = {};
+  if (cached && cached.prices) {
+    for (const [k, v] of Object.entries(cached.prices)) {
+      if (typeof v === 'number' && v > 0) validCachedPrices[k] = v;
+    }
+  }
+
+  // We only fetch what we need (the requested symbols) but we merge them into the previous cache to retain old values
+  const uniqueSymbols = Array.from(new Set([...symbols, "USDTWD=X"]));
+  const finalPrices: Record<string, number> = { ...MOCK_PRICES, ...validCachedPrices };
+  
+  // STRATEGY 1: GOOGLE SHEETS CSV OMNI-PROXY
+  const sheetUrl = import.meta.env.VITE_GOOGLE_SHEET_URL;
+  if (sheetUrl) {
+    try {
+      const sheetResponse = await fetch(sheetUrl);
+      if (sheetResponse.ok) {
+        const csvText = await sheetResponse.text();
+        const rows = csvText.split('\n');
+        
+        let fetchedAny = false;
+        rows.forEach(row => {
+          const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          if (cols.length >= 2) {
+            const sym = cols[0];
+            const price = parseFloat(cols[1]);
+            if (uniqueSymbols.includes(sym) && !isNaN(price) && price > 0) {
+              finalPrices[sym] = price;
+              fetchedAny = true;
+            }
+          }
+        });
+        
+        if (fetchedAny) {
+          sessionStorage.setItem(PRICE_CACHE_KEY, JSON.stringify({ prices: finalPrices, timestamp: new Date().toISOString() }));
+          return finalPrices; 
+        }
+      }
+    } catch (sheetErr) {
+      console.warn("Failed to fetch prices from Google Sheet CSV", sheetErr);
+    }
+  }
+
+  // STRATEGY 2: GITHUB ACTIONS STATIC JSON BACKEND (The Ultimate Fallback)
+  // This reads the JSON compiled by our GitHub Action, which is completely immune to CORS and Proxies
+  try {
+    const isGhPages = typeof window !== 'undefined' && window.location.hostname.endsWith('.github.io');
+    const owner = isGhPages ? window.location.hostname.split('.')[0] : 'byn777';
+    // The path specifically points to the branch 'prices-data' created by our Action
+    const actionsJsonUrl = `https://raw.githubusercontent.com/${owner}/ZENFOLIO/prices-data/public/live_prices.json`;
+    
+    // Use an AbortController so it doesn't hang if offline
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    
+    const githubRes = await fetch(actionsJsonUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (githubRes.ok) {
+      const actionsData = await githubRes.json();
+      let fetchedAny = false;
+      for (const sym of uniqueSymbols) {
+        if (actionsData[sym] !== undefined && actionsData[sym] !== null && actionsData[sym] > 0) {
+          finalPrices[sym] = actionsData[sym];
+          fetchedAny = true;
+        }
+      }
+      
+      if (fetchedAny) {
+        sessionStorage.setItem(PRICE_CACHE_KEY, JSON.stringify({ prices: finalPrices, timestamp: new Date().toISOString() }));
+        return finalPrices; // Return instantly before touching any dynamic proxies
+      }
+    }
+  } catch(e) {
+    console.warn("GitHub Actions static JSON not yet available or reachable.");
+  }
+
+  // STRATEGY 3: YAHOO FINANCE MULTI-PROXY CASCADE (Dynamic Fallback)
   try {
     await Promise.all(uniqueSymbols.map(async (symbol) => {
       try {
         const isProd = import.meta.env.PROD;
         const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
         
-        // For static hosting (GitHub Pages), we use a reliable public CORS proxy
-        // since Serverless Functions (/api/*) are not supported.
-        const endpoint = isProd 
-          ? `https://corsproxy.io/?${encodeURIComponent(targetUrl)}` 
-          : `/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-          
-        const response = await fetch(endpoint);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
+        let data = null;
+        let fetchSuccess = false;
+
+        // Determine Fetch Strategies
+        const endpoints = [];
         
-        // Vercel output maps the data slightly differently or same depending on proxy structure
-        // Since my Vercel proxy returns exactly the data from Yahoo, we maintain standard logic:
-        const result = data?.chart?.result?.[0];
-        if (result && result.meta && result.meta.regularMarketPrice) {
-          finalPrices[symbol] = result.meta.regularMarketPrice;
+        if (!isProd) {
+          // 1. Local Development (Vite Proxy)
+          endpoints.push(`/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+        }
+        
+        // 2. Public CORS Proxies Cascade (Works on both Static Hosts and Local Fallback)
+        endpoints.push(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+        endpoints.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+        endpoints.push(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+
+        const fetchPromises = endpoints.map(async (endpoint) => {
+          // Use AbortController for a 4-second timeout to ensure no request hangs forever
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          try {
+            const response = await fetch(endpoint, { signal: controller.signal });
+            if (!response.ok) throw new Error('HTTP Error');
+            const text = await response.text();
+            const parsed = JSON.parse(text);
+            
+            // Validate payload structure
+            if (parsed?.chart?.result?.[0]?.meta?.regularMarketPrice || parsed?.quoteResponse?.result?.[0]?.regularMarketPrice) {
+              return parsed;
+            }
+            throw new Error('Invalid JSON structure');
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        });
+
+        try {
+          // Race all proxies simultaneously! The fastest one to return valid JSON wins instantly.
+          data = await Promise.any(fetchPromises);
+          fetchSuccess = true;
+        } catch (aggregateError) {
+          console.warn(`All proxies failed or timed out for ${symbol}`);
+        }
+        
+        if (!fetchSuccess || !data) throw new Error(`All endpoints failed or returned invalid data for ${symbol}`);
+        
+        // Parse Yahoo Format
+        const result = data?.chart?.result?.[0] || data?.quoteResponse?.result?.[0];
+        const price = result?.meta?.regularMarketPrice || result?.regularMarketPrice;
+        
+        if (price) {
+          finalPrices[symbol] = price;
         }
       } catch (err) {
         console.warn(`Failed to fetch Yahoo Finance price for ${symbol}:`, err);
