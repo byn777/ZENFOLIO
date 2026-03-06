@@ -139,10 +139,17 @@ export const fetchCurrentPrices = async (symbols: string[], forceRefresh: boolea
   try {
     await Promise.all(uniqueSymbols.map(async (symbol) => {
       try {
-        const response = await fetch(`/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+        const isProd = (import.meta as any).env.PROD;
+        const endpoint = isProd 
+          ? `/api/yahoo-proxy?symbol=${symbol}` 
+          : `/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+          
+        const response = await fetch(endpoint);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
+        // Vercel output maps the data slightly differently or same depending on proxy structure
+        // Since my Vercel proxy returns exactly the data from Yahoo, we maintain standard logic:
         const result = data?.chart?.result?.[0];
         if (result && result.meta && result.meta.regularMarketPrice) {
           finalPrices[symbol] = result.meta.regularMarketPrice;
