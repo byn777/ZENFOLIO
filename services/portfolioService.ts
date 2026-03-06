@@ -140,8 +140,12 @@ export const fetchCurrentPrices = async (symbols: string[], forceRefresh: boolea
     await Promise.all(uniqueSymbols.map(async (symbol) => {
       try {
         const isProd = import.meta.env.PROD;
+        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+        
+        // For static hosting (GitHub Pages), we use a reliable public CORS proxy
+        // since Serverless Functions (/api/*) are not supported.
         const endpoint = isProd 
-          ? `/api/yahoo-proxy?symbol=${symbol}` 
+          ? `https://corsproxy.io/?${encodeURIComponent(targetUrl)}` 
           : `/api/yahoo/v8/finance/chart/${symbol}?interval=1d&range=1d`;
           
         const response = await fetch(endpoint);
