@@ -44,7 +44,7 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate, portfolioV
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+          <div className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
             <h3 className="text-xl font-bold text-slate-800">預測參數設定</h3>
             
             <div className="space-y-3">
@@ -104,7 +104,7 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate, portfolioV
             </div>
           </div>
 
-          <div className="bg-blue-600 p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+          <div className="bg-blue-600 p-6 lg:p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
             <Sparkles className="absolute -right-4 -top-4 w-24 h-24 opacity-10 rotate-12" />
             <h4 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-2">{forecastYears} 年後的資產估計</h4>
             <div className="text-3xl font-black font-mono tracking-tighter mb-4">
@@ -123,10 +123,10 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate, portfolioV
           </div>
         </div>
 
-        <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-8">
+        <div className="lg:col-span-3 bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <h3 className="text-xl font-bold text-slate-800">長期資產成長趨勢</h3>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">預估市值</span>

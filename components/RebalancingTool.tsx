@@ -259,8 +259,8 @@ export const RebalancingTool: React.FC<RebalancingToolProps> = ({ portfolio, tar
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+        <div className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6 lg:space-y-8">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-slate-800">1. 設定您的目標 (%)</h3>
             <div className={`text-sm font-black font-mono px-3 py-1 rounded-full ${Math.abs(totalTargetPercent - 100) < 0.1 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
@@ -356,8 +356,8 @@ export const RebalancingTool: React.FC<RebalancingToolProps> = ({ portfolio, tar
         </div>
 
         {portfolio.holdings.length > 0 && (
-          <div className="space-y-8">
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+          <div className="space-y-6 lg:space-y-8">
+            <div className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
                 <h3 className="text-xl font-bold text-slate-800">2. 投入資金與模式</h3>
                 <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
@@ -379,19 +379,19 @@ export const RebalancingTool: React.FC<RebalancingToolProps> = ({ portfolio, tar
               <div className="space-y-4">
                 <label className="text-[10px] uppercase tracking-widest font-black text-slate-400">本次預計投入總額 (TWD)</label>
                 <div className="relative">
-                  <span className="absolute left-6 top-6 font-bold text-slate-300 text-xl">NT$</span>
+                  <span className="absolute left-6 top-5 lg:top-6 font-bold text-slate-300 text-lg lg:text-xl">NT$</span>
                   <input 
                     type="number"
                     value={budgetTWD || ''}
                     onChange={(e) => setBudgetTWD(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-16 pr-6 py-6 bg-slate-50 border-none rounded-3xl text-3xl font-black font-mono focus:ring-2 focus:ring-blue-500 outline-none text-blue-600"
+                    className="w-full pl-16 pr-6 py-4 lg:py-6 bg-slate-50 border-none rounded-3xl text-2xl lg:text-3xl font-black font-mono focus:ring-2 focus:ring-blue-500 outline-none text-blue-600"
                     placeholder="0"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
+            <div className="bg-slate-900 p-5 lg:p-8 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-[80px]"></div>
               
               <div className="flex justify-between items-center mb-8 relative z-10">

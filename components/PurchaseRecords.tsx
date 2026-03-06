@@ -208,7 +208,7 @@ export const PurchaseRecords: React.FC<PurchaseRecordsProps> = ({ records, onAdd
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
-          <form onSubmit={(e) => { e.preventDefault(); if (formData.price > 0 && formData.quantity > 0) onAdd(formData); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-5 sticky top-8">
+          <form onSubmit={(e) => { e.preventDefault(); if (formData.price > 0 && formData.quantity > 0) onAdd(formData); }} className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-5 lg:sticky lg:top-8">
             <h3 className="text-xl font-bold text-slate-800 mb-2">單筆新增</h3>
             <div className="space-y-4">
               <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm" />
@@ -298,33 +298,33 @@ export const PurchaseRecords: React.FC<PurchaseRecordsProps> = ({ records, onAdd
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-slate-50/50">
-                      <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">日期</th>
-                      <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">標的</th>
-                      <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">交易詳情</th>
-                      <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">總額</th>
-                      <th className="px-8 py-4"></th>
+                      <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">日期</th>
+                      <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">標的</th>
+                      <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">交易詳情</th>
+                      <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">總額</th>
+                      <th className="px-4 lg:px-8 py-4"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((r) => (
                       <tr key={r.id} className="hover:bg-slate-50/30 transition-colors">
-                        <td className="px-8 py-5 text-sm text-slate-600">{r.date}</td>
-                        <td className="px-8 py-5">
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-sm text-slate-600 whitespace-nowrap">{r.date}</td>
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                           <div className="font-bold text-slate-800">{r.symbol}</div>
                           <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
                             r.type === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
                           }`}>{r.type === 'BUY' ? '買入' : '賣出'}</span>
                         </td>
-                        <td className="px-8 py-5">
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                           <div className="text-xs text-slate-500">價: {r.currency === 'TWD' ? 'NT$' : '$'}{safeFormat(r.price)} | 量: {safeFormat(r.quantity)}</div>
                           {r.currency === 'USD' && r.twdCost ? (
                             <div className="text-[10px] text-slate-400 mt-1">實付: NT${safeFormat(r.twdCost, { maximumFractionDigits: 0 })}</div>
                           ) : null}
                         </td>
-                        <td className={`px-8 py-5 font-mono font-bold ${r.type === 'SELL' ? 'text-red-600' : 'text-slate-800'}`}>
+                        <td className={`px-4 lg:px-8 py-4 lg:py-5 font-mono font-bold whitespace-nowrap ${r.type === 'SELL' ? 'text-red-600' : 'text-slate-800'}`}>
                           {r.type === 'SELL' ? '-' : ''}{r.currency === 'TWD' ? 'NT$' : '$'}{safeFormat(r.price * r.quantity, { maximumFractionDigits: 0 })}
                         </td>
-                        <td className="px-8 py-5 text-right">
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-right whitespace-nowrap">
                           <button onClick={() => setEditingRecord({ ...r })} className="p-2 text-slate-300 hover:text-blue-500 transition-all mr-1"><Pencil size={15} /></button>
                           <button onClick={() => onDelete(r.id)} className="p-2 text-slate-300 hover:text-red-500 transition-all"><Trash2 size={18} /></button>
                         </td>

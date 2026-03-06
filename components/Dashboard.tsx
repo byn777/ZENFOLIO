@@ -27,7 +27,7 @@ interface DashboardProps {
 }
 
 const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; color: string; trend?: number; onClick?: () => void; clickable?: boolean }> = ({ title, value, subValue, icon, color, trend, onClick, clickable }) => (
-  <div className={`bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow ${clickable ? 'cursor-pointer select-none' : ''}`} onClick={onClick}>
+  <div className={`bg-white p-4 lg:p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow ${clickable ? 'cursor-pointer select-none' : ''}`} onClick={onClick}>
     <div className="flex justify-between items-start mb-4">
       <div className={`p-3 rounded-2xl ${color}`}>
         {icon}
@@ -284,7 +284,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, records, displa
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 flex flex-col gap-8">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+          <div className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-800">類別分佈</h3>
               <PieChartIcon size={20} className="text-slate-300" />
@@ -326,7 +326,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, records, displa
         </div>
 
         <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+          <div className="p-5 lg:p-8 border-b border-slate-50 flex justify-between items-center">
             <h3 className="text-xl font-bold text-slate-800">主要持倉實時表現</h3>
             <button onClick={() => onNavigate('records')} className="text-blue-600 text-xs font-bold uppercase tracking-widest hover:underline">查看全部</button>
           </div>
@@ -334,11 +334,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, records, displa
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50">
-                  <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">標的</th>
-                  <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">數量</th>
-                  <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">實時單價</th>
+                  <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">標的</th>
+                  <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">數量</th>
+                  <th className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">實時單價</th>
                   <th
-                    className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold cursor-pointer select-none hover:text-blue-500 transition-colors group"
+                    className="px-4 lg:px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold cursor-pointer select-none hover:text-blue-500 transition-colors group whitespace-nowrap"
                     onClick={() => setReturnDisplayMode(v => ((v + 1) % 3) as 0 | 1 | 2)}
                     title="點擊切換"
                   >
@@ -350,20 +350,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, records, displa
               <tbody className="divide-y divide-slate-50">
                 {(portfolio?.holdings || []).map((h) => (
                   <tr key={h.symbol} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-8 py-5">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                       <div className="font-bold text-slate-800">{h.symbol}</div>
                       <div className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-bold inline-block uppercase tracking-wider">
                         {CATEGORY_LABELS[h.category as AssetCategory] || h.category}
                       </div>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                       <div className="font-mono text-sm font-bold text-slate-800">{formatNum(h.totalQuantity)}</div>
                       <div className="text-xs text-slate-400">{fmtMoney(h.currentMarketValueUSD)}</div>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                       <div className="font-mono text-sm font-bold text-slate-800">{fmtPrice(h)}</div>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5 whitespace-nowrap">
                       {returnDisplayMode !== 0 ? (() => {
                         const annReturn = returnDisplayMode === 1 ? getAnnualizedReturn(h) : getHoldingCAGR(h);
                         const label = returnDisplayMode === 1 ? 'XIRR' : 'CAGR';

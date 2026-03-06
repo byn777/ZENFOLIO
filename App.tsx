@@ -144,8 +144,31 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#F8FAFC]">
-      {/* Sidebar Navigation */}
-      <aside className="lg:w-72 bg-white border-r border-slate-100 p-8 flex flex-col gap-10">
+      {/* Mobile Top Header (Hidden on Desktop) */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md border-b border-slate-100 z-40 px-5 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-200">
+            <Zap size={18} />
+          </div>
+          <span className="text-lg font-black text-slate-900 tracking-tighter">ZENFOLIO</span>
+        </div>
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={() => handleToggleDemo(!isDemoMode)}
+             className={`w-9 h-5 rounded-full transition-colors relative shadow-inner ${isDemoMode ? 'bg-blue-600' : 'bg-slate-300'}`}
+           >
+             <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isDemoMode ? 'translate-x-4' : 'translate-x-0'} shadow-sm`} />
+           </button>
+           {session ? (
+              <button onClick={() => supabase.auth.signOut()} className="text-[10px] text-slate-400 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl"><LogOut size={16} /></button>
+           ) : (
+              <button onClick={() => setShowAuthModal(true)} className="text-[10px] text-blue-600 font-bold p-2 bg-blue-50 hover:bg-blue-100 rounded-xl"><Cloud size={16} /></button>
+           )}
+        </div>
+      </header>
+
+      {/* Desktop Sidebar Navigation (Hidden on Mobile) */}
+      <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 p-8 flex-col gap-10 sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
             <Zap size={24} />
@@ -241,11 +264,31 @@ const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 p-6 lg:p-12 overflow-y-auto max-h-screen">
-        <div className="max-w-6xl mx-auto pb-20">
+      <main className="flex-1 p-4 pt-24 pb-28 lg:p-12 lg:pb-12 overflow-y-auto min-h-screen">
+        <div className="max-w-6xl mx-auto">
           {renderContent()}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation (Hidden on Desktop) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-100 z-50 px-2 py-2 flex items-center justify-around pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center gap-1 p-2 min-w-[64px] rounded-2xl transition-all ${
+              activeTab === item.id 
+                ? 'text-blue-600' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-50 text-blue-600 scale-110' : ''}`}>
+              {React.cloneElement(item.icon as React.ReactElement, { size: 20 })}
+            </div>
+            <span className={`text-[9px] font-bold ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}`}>{item.label.split(' ')[0]}</span>
+          </button>
+        ))}
+      </nav>
       {/* Cloud Authentication Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

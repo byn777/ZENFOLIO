@@ -116,7 +116,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="bg-white p-5 lg:p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 rounded-2xl bg-blue-50"><DollarSign size={24} className="text-blue-600" /></div>
           </div>
@@ -124,7 +124,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
           <h3 className="text-2xl font-black text-slate-800 font-mono tracking-tighter">NT$ {fmt(totalAll.twdSpent)}</h3>
           <p className="text-xs text-slate-500 mt-1">≈ 資產總覽的「歷史投入本金」× 匯率</p>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="bg-white p-5 lg:p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 rounded-2xl bg-amber-50"><Calculator size={24} className="text-amber-600" /></div>
           </div>
@@ -132,7 +132,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
           <h3 className="text-2xl font-black text-slate-800 font-mono tracking-tighter">1 USD = {currentExchangeRate.toFixed(2)} TWD</h3>
           <p className="text-xs text-slate-500 mt-1">台幣金額均以此匯率換算 (無歷史匯率紀錄)</p>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="bg-white p-5 lg:p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 rounded-2xl bg-purple-50"><TrendingUp size={24} className="text-purple-600" /></div>
           </div>
@@ -144,7 +144,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
 
       {/* Bar Chart */}
       {chartData.length > 0 && (
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="bg-white p-5 lg:p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
           <h3 className="text-xl font-bold text-slate-800 mb-6">每年投入台幣總額 (萬)</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={chartData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
@@ -161,7 +161,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
 
       {/* Year-by-Year Table */}
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-8 border-b border-slate-50">
+        <div className="p-5 lg:p-8 border-b border-slate-50">
           <h3 className="text-xl font-bold text-slate-800">年度明細</h3>
           <p className="text-xs text-slate-400 mt-1">點擊展開查看各月份明細</p>
         </div>
@@ -172,9 +172,9 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
             <p className="text-xs mt-1 uppercase tracking-widest">請先新增美股、英股或加密貨幣的購買紀錄</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 overflow-x-auto">
             {/* Header row */}
-            <div className="grid grid-cols-5 px-8 py-3 bg-slate-50/50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <div className="grid grid-cols-5 px-4 lg:px-8 py-3 bg-slate-50/50 text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[500px]">
               <div>年份</div>
               <div className="text-right">投入台幣</div>
               <div className="text-right">兌換美金</div>
@@ -186,12 +186,12 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
               <div key={y.year}>
                 {/* Year summary row */}
                 <div
-                  className="grid grid-cols-5 px-8 py-5 hover:bg-slate-50/30 transition-colors cursor-pointer items-center"
+                  className="grid grid-cols-5 px-4 lg:px-8 py-4 lg:py-5 hover:bg-slate-50/30 transition-colors cursor-pointer items-center min-w-[500px]"
                   onClick={() => setExpandedYear(prev => prev === y.year ? null : y.year)}
                 >
                   <div className="flex items-center gap-2 font-black text-slate-800">
                     {expandedYear === y.year ? <ChevronUp size={16} className="text-blue-500" /> : <ChevronDown size={16} className="text-slate-300" />}
-                    {y.year} 年
+                    {y.year} <span className="hidden md:inline">年</span>
                   </div>
                   <div className="text-right font-mono font-bold text-slate-800">NT$ {fmt(y.totalTWD)}</div>
                   <div className="text-right font-mono font-bold text-slate-800">${fmt(y.totalUSD, 1)}</div>
@@ -201,11 +201,10 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
                   </div>
                 </div>
 
-                {/* Monthly breakdown */}
                 {expandedYear === y.year && (
                   <div className="bg-slate-50/40 border-t border-slate-100">
                     {/* Month sub-header */}
-                    <div className="grid grid-cols-4 px-14 py-2 text-[9px] font-black uppercase tracking-widest text-slate-300">
+                    <div className="grid grid-cols-4 px-6 lg:px-14 py-2 text-[9px] font-black uppercase tracking-widest text-slate-300 min-w-[500px]">
                       <div>月份</div>
                       <div className="text-right">投入台幣</div>
                       <div className="text-right">兌換美金</div>
@@ -214,7 +213,7 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
                     {y.months.map(m => {
                       const monthIndex = parseInt(m.month.split('-')[1]) - 1;
                       return (
-                        <div key={m.month} className="grid grid-cols-4 px-14 py-3 border-t border-slate-100/50 text-sm">
+                        <div key={m.month} className="grid grid-cols-4 px-6 lg:px-14 py-3 border-t border-slate-100/50 text-xs lg:text-sm min-w-[500px]">
                           <div className="text-slate-600 font-semibold">{MONTH_LABELS[monthIndex]}</div>
                           <div className="text-right font-mono text-slate-700">NT$ {fmt(m.twdSpent)}</div>
                           <div className="text-right font-mono text-slate-700">${fmt(m.usdBought, 1)}</div>
@@ -228,12 +227,12 @@ export const AnnualCostAnalysis: React.FC<AnnualCostAnalysisProps> = ({ records,
             ))}
 
             {/* Total row */}
-            <div className="grid grid-cols-5 px-8 py-5 bg-slate-900 text-white font-black">
-              <div className="text-sm">合計</div>
-              <div className="text-right font-mono">NT$ {fmt(totalAll.twdSpent)}</div>
-              <div className="text-right font-mono">${fmt(totalAll.usdBought, 1)}</div>
-              <div className="text-right text-slate-400 text-xs font-normal">加權平均<br />{(totalAll.twdSpent / (totalAll.usdBought || 1)).toFixed(2)}</div>
-              <div className={`text-right font-mono ${totalAll.ratePL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="grid grid-cols-5 px-4 lg:px-8 py-4 lg:py-5 bg-slate-900 text-white font-black min-w-[500px] items-center">
+              <div className="text-xs lg:text-sm">合計</div>
+              <div className="text-right font-mono text-sm lg:text-base">NT$ {fmt(totalAll.twdSpent)}</div>
+              <div className="text-right font-mono text-sm lg:text-base">${fmt(totalAll.usdBought, 1)}</div>
+              <div className="text-right text-slate-400 text-[10px] lg:text-xs font-normal">加權平均<br />{(totalAll.twdSpent / (totalAll.usdBought || 1)).toFixed(2)}</div>
+              <div className={`text-right font-mono text-sm lg:text-base ${totalAll.ratePL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {totalAll.ratePL >= 0 ? '+' : ''}NT$ {fmt(totalAll.ratePL)}
               </div>
             </div>
