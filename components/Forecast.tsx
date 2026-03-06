@@ -8,15 +8,17 @@ import { TrendingUp, Percent, Calendar, Sparkles } from 'lucide-react';
 interface ForecastProps {
   records: PurchaseRecord[];
   usdRate: number;
+  portfolioValueUSD: number;
 }
 
-export const Forecast: React.FC<ForecastProps> = ({ records, usdRate }) => {
+export const Forecast: React.FC<ForecastProps> = ({ records, usdRate, portfolioValueUSD }) => {
   const [annualROI, setAnnualROI] = useState(8);
   const [forecastYears, setForecastYears] = useState(20);
+  const [monthlyContribution, setMonthlyContribution] = useState(10000);
 
   const data = useMemo(() => 
-    generatePrediction(records || [], usdRate || 32.4, annualROI, forecastYears),
-    [records, usdRate, annualROI, forecastYears]
+    generatePrediction(records || [], usdRate || 32.4, annualROI, forecastYears, portfolioValueUSD * usdRate, monthlyContribution),
+    [records, usdRate, annualROI, forecastYears, portfolioValueUSD, monthlyContribution]
   );
 
   const latest = data.length > 0 ? data[data.length - 1] : { portfolioValue: 0, cumulativeInvestment: 0, gainLoss: 0 };
@@ -82,6 +84,24 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate }) => {
                 className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
             </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 flex items-center gap-1">
+                  <TrendingUp size={12} /> 每月投入本金
+                </label>
+                <span className="text-sm font-black font-mono text-blue-600">NT$ {monthlyContribution.toLocaleString()}</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="200000"
+                step="5000"
+                value={monthlyContribution}
+                onChange={(e) => setMonthlyContribution(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+            </div>
           </div>
 
           <div className="bg-blue-600 p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
@@ -109,11 +129,15 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate }) => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">總市值</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">預估市值</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-slate-200"></div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">投入本金</span>
+                <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">理論報酬(5%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-slate-600"></div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">投入本金</span>
               </div>
             </div>
           </div>
@@ -158,11 +182,21 @@ export const Forecast: React.FC<ForecastProps> = ({ records, usdRate }) => {
                 />
                 <Area 
                   type="monotone" 
-                  name="累積投入本金"
-                  dataKey="cumulativeInvestment" 
-                  stroke="#E2E8F0" 
+                  name="理論曲線(5%)"
+                  dataKey="baselineValue" 
+                  stroke="#F97316" 
+                  strokeDasharray="5 5"
                   strokeWidth={2}
                   fillOpacity={0} 
+                />
+                <Area 
+                  type="monotone" 
+                  name="累積投入本金"
+                  dataKey="cumulativeInvestment" 
+                  stroke="#475569" 
+                  strokeWidth={2.5}
+                  fillOpacity={0} 
+                  strokeDasharray="4 4"
                 />
               </AreaChart>
             </ResponsiveContainer>

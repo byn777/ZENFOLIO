@@ -1,7 +1,8 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import { SymbolHolding, PortfolioData } from '../types';
+import { SymbolHolding, PortfolioData, PurchaseRecord } from '../types';
+import { calculateXIRR } from '../services/portfolioService';
 import { CATEGORY_LABELS, AssetCategory } from '../constants';
 // Alias PieChart to PieChartIcon to avoid conflict with Recharts component and match its usage
 import { Wallet, TrendingUp, DollarSign, Activity, ChevronRight, PieChart as PieChartIcon, Globe, RefreshCw, Loader2, Layers } from 'lucide-react';
@@ -17,13 +18,16 @@ const CAT_COLORS: Record<string, string> = {
 
 interface DashboardProps {
   portfolio: PortfolioData;
+  records: PurchaseRecord[];
+  displayCurrency: 'USD' | 'TWD';
+  onToggleCurrency: () => void;
   onNavigate: (id: string) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }
 
-const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; color: string; trend?: number }> = ({ title, value, subValue, icon, color, trend }) => (
-  <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon: React.ReactNode; color: string; trend?: number; onClick?: () => void; clickable?: boolean }> = ({ title, value, subValue, icon, color, trend, onClick, clickable }) => (
+  <div className={`bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow ${clickable ? 'cursor-pointer select-none' : ''}`} onClick={onClick}>
     <div className="flex justify-between items-start mb-4">
       <div className={`p-3 rounded-2xl ${color}`}>
         {icon}
@@ -35,14 +39,29 @@ const StatCard: React.FC<{ title: string; value: string; subValue?: string; icon
       )}
     </div>
     <div>
-      <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">{title}</p>
+      <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">{title}{clickable ? <span className="ml-1 opacity-30">⇄</span> : null}</p>
       <h3 className="text-2xl font-black text-slate-800 font-mono tracking-tighter">{value}</h3>
       {subValue && <p className="text-xs text-slate-500 mt-1">{subValue}</p>}
     </div>
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ portfolio, onNavigate, onRefresh, isRefreshing }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ portfolio, records, displayCurrency, onToggleCurrency, onNavigate, onRefresh, isRefreshing }) => {
+  // 0: Total Gain, 1: XIRR, 2: CAGR
+  const [returnDisplayMode, setReturnDisplayMode] = useState<0 | 1 | 2>(0);
+  
+  // Compute first purchase date per symbol to calculate years held
+  const firstPurchaseDateBySymbol = useMemo(() => {
+    const map: Record<string, number> = {};
+    records.forEach(r => {
+      const ts = new Date(r.date).getTime();
+      if (!map[r.symbol] || ts < map[r.symbol]) {
+        map[r.symbol] = ts;
+      }
+    });
+    return map;
+  }, [records]);
+
   const chartData = (portfolio?.holdings || []).map(h => ({ name: h.symbol, value: h.currentMarketValueUSD || 0 }));
   
   const categoryData = useMemo(() => {
@@ -60,12 +79,129 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, onNavigate, onR
   const totalGain = (portfolio?.totalMarketValueUSD || 0) - (portfolio?.totalCostUSD || 0);
   const totalGainPercent = (portfolio?.totalCostUSD || 0) > 0 ? (totalGain / portfolio.totalCostUSD) * 100 : 0;
 
+  const rate = portfolio?.exchangeRate || 32.4;
+  const isTWD = displayCurrency === 'TWD';
+
+  const getAnnualizedReturn = (h: SymbolHolding): number | null => {
+    const symbolRecords = records.filter(sq => sq.symbol === h.symbol);
+    if (symbolRecords.length === 0) return null;
+
+    const cashFlows: { amount: number, date: Date }[] = [];
+    let hasNonZeroHoldingTime = false;
+    const now = Date.now();
+
+    symbolRecords.forEach(r => {
+      let amountTWD = 0;
+      if (r.currency === 'TWD') {
+        amountTWD = r.price * r.quantity;
+      } else {
+        amountTWD = r.twdCost ? r.twdCost : (r.price * r.quantity * rate);
+      }
+      
+      const recordDate = new Date(r.date);
+      if ((now - recordDate.getTime()) > 1000 * 60 * 60 * 24 * 18) {
+        hasNonZeroHoldingTime = true;
+      }
+
+      cashFlows.push({
+        amount: r.type === 'BUY' ? -amountTWD : amountTWD,
+        date: recordDate
+      });
+    });
+
+    if (!hasNonZeroHoldingTime) return null;
+
+    // Use currentMarketValueUSD directly
+    const currentTWDValue = h.currentMarketValueUSD * rate;
+    
+    cashFlows.push({
+      amount: currentTWDValue,
+      date: new Date()
+    });
+
+    const xirr = calculateXIRR(cashFlows);
+    return xirr !== null ? xirr * 100 : null;
+  };
+
+  const getHoldingCAGR = (h: SymbolHolding): number | null => {
+    const firstTs = firstPurchaseDateBySymbol[h.symbol];
+    if (!firstTs) return null;
+    const yearsHeld = (Date.now() - firstTs) / (1000 * 60 * 60 * 24 * 365.25);
+    if (yearsHeld < 0.05) return null; // Less than ~18 days: too short
+    const totalReturn = h.gainPercent / 100;
+    return (Math.pow(1 + totalReturn, 1 / yearsHeld) - 1) * 100;
+  };
+
+  // Portfolio-wide XIRR (Annualized Return based on actual cash flows)
+  const portfolioAnnualizedReturn = useMemo(() => {
+    if (records.length === 0 || portfolio?.totalMarketValueUSD <= 0) return null;
+    
+    const cashFlows: { amount: number, date: Date }[] = [];
+    let hasNonZeroHoldingTime = false;
+    const now = Date.now();
+
+    records.forEach(r => {
+      let amountTWD = 0;
+      if (r.currency === 'TWD') {
+        amountTWD = r.price * r.quantity;
+      } else {
+        // Fallback to current rate if explicit twdCost is missing
+        amountTWD = r.twdCost ? r.twdCost : (r.price * r.quantity * rate);
+      }
+      
+      const recordDate = new Date(r.date);
+      if ((now - recordDate.getTime()) > 1000 * 60 * 60 * 24 * 18) {
+        hasNonZeroHoldingTime = true; // Need at least ~18 days of holding for meaningful annualized return
+      }
+
+      // Outflow is negative, inflow is positive
+      cashFlows.push({
+        amount: r.type === 'BUY' ? -amountTWD : amountTWD,
+        date: recordDate
+      });
+    });
+
+    if (!hasNonZeroHoldingTime) return null;
+
+    // View the current portfolio value as the final positive cash flow (as if sold today)
+    cashFlows.push({
+      amount: portfolio.totalCostUSD > 0 ? portfolio.totalMarketValueUSD * rate : 0, // In TWD conceptually
+      date: new Date()
+    });
+
+    const xirr = calculateXIRR(cashFlows);
+    return xirr !== null ? xirr * 100 : null; // Convert to percentage
+  }, [records, portfolio?.totalMarketValueUSD, portfolio?.totalCostUSD, rate]);
+
+  // Portfolio-wide CAGR
+  const portfolioCAGR = useMemo(() => {
+    if (records.length === 0 || portfolio?.totalCostUSD <= 0) return null;
+    const earliest = Math.min(...records.map(r => new Date(r.date).getTime()));
+    const yearsHeld = (Date.now() - earliest) / (1000 * 60 * 60 * 24 * 365.25);
+    if (yearsHeld < 0.05) return null;
+    const totalReturn = totalGainPercent / 100;
+    return (Math.pow(1 + totalReturn, 1 / yearsHeld) - 1) * 100;
+  }, [records, totalGainPercent, portfolio?.totalCostUSD]);
+
   const lastUpdateDate = portfolio?.timestamp ? new Date(portfolio.timestamp) : new Date();
   const formattedTime = lastUpdateDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const formatNum = (val: number | undefined, options?: Intl.NumberFormatOptions) => {
     if (val === undefined || val === null || isNaN(val)) return "0";
     return val.toLocaleString(undefined, options);
+  };
+
+  // Format a USD value in the currently selected display currency
+  const fmtMoney = (usdVal: number, digits = 0): string => {
+    const v = isTWD ? usdVal * rate : usdVal;
+    const prefix = isTWD ? 'NT$ ' : '$ ';
+    return prefix + v.toLocaleString(undefined, { maximumFractionDigits: digits });
+  };
+
+  // Format a single unit price (h.currentPrice is strictly in USD everywhere)
+  const fmtPrice = (h: SymbolHolding): string => {
+    if (isTWD) return `NT$ ${formatNum(h.currentPrice * rate, { maximumFractionDigits: 2 })}`;
+    return `$ ${formatNum(h.currentPrice, { maximumFractionDigits: 2 })}`;
   };
 
   return (
@@ -90,30 +226,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, onNavigate, onR
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100">
-          <Globe size={16} className="text-blue-600" />
-          <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">USD/TWD: {portfolio?.exchangeRate?.toFixed(2) || "32.40"}</span>
+        <div className="flex items-center gap-2">
+          {/* Currency Toggle */}
+          <button
+            onClick={onToggleCurrency}
+            className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2 hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <Globe size={14} className="text-blue-600" />
+            <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">USD/TWD: {portfolio?.exchangeRate?.toFixed(2) || "32.40"}</span>
+            <div className="flex bg-slate-100 rounded-lg overflow-hidden text-[10px] font-black ml-1">
+              <span className={`px-1.5 py-0.5 transition-colors ${!isTWD ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>$</span>
+              <span className={`px-1.5 py-0.5 transition-colors ${isTWD ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>NT$</span>
+            </div>
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="總資產市值 (USD)" 
-          value={`$${formatNum(portfolio?.totalMarketValueUSD, { maximumFractionDigits: 0 })}`}
-          subValue={`≈ NT$ ${formatNum((portfolio?.totalMarketValueUSD || 0) * (portfolio?.exchangeRate || 32.4), { maximumFractionDigits: 0 })}`}
+          title={`總資產市值 (${displayCurrency})`}
+          value={fmtMoney(portfolio?.totalMarketValueUSD || 0)}
+          subValue={isTWD
+            ? `≈ $ ${formatNum(portfolio?.totalMarketValueUSD, { maximumFractionDigits: 0 })} USD`
+            : `≈ NT$ ${formatNum((portfolio?.totalMarketValueUSD || 0) * rate, { maximumFractionDigits: 0 })}`
+          }
           icon={<Wallet className="text-blue-600" size={24} />}
           color="bg-blue-50"
         />
         <StatCard 
-          title="累計總損益" 
-          value={`$${formatNum(totalGain, { maximumFractionDigits: 0 })}`}
-          trend={totalGainPercent}
+          title={returnDisplayMode === 1 ? '年化報酬 (XIRR)' : returnDisplayMode === 2 ? '年化報酬 (CAGR)' : `累計總損益 (${displayCurrency})`} 
+          value={returnDisplayMode === 1
+            ? (portfolioAnnualizedReturn !== null ? `${portfolioAnnualizedReturn >= 0 ? '+' : ''}${portfolioAnnualizedReturn.toFixed(2)}%` : '—')
+            : returnDisplayMode === 2
+            ? (portfolioCAGR !== null ? `${portfolioCAGR >= 0 ? '+' : ''}${portfolioCAGR.toFixed(2)}%` : '—')
+            : fmtMoney(totalGain)
+          }
+          trend={returnDisplayMode === 0 ? totalGainPercent : undefined}
+          subValue={returnDisplayMode === 0 ? `累計報酬 ${totalGainPercent.toFixed(2)}%` : undefined}
           icon={<TrendingUp className="text-green-600" size={24} />}
           color="bg-green-50"
+          clickable
+          onClick={() => setReturnDisplayMode(v => ((v + 1) % 3) as 0 | 1 | 2)}
         />
         <StatCard 
           title="歷史投入本金" 
-          value={`$${formatNum(portfolio?.totalCostUSD, { maximumFractionDigits: 0 })}`}
+          value={fmtMoney(portfolio?.totalCostUSD || 0)}
           icon={<DollarSign className="text-amber-600" size={24} />}
           color="bg-amber-50"
         />
@@ -180,7 +337,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, onNavigate, onR
                   <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">標的</th>
                   <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">數量</th>
                   <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">實時單價</th>
-                  <th className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">損益狀況</th>
+                  <th
+                    className="px-8 py-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold cursor-pointer select-none hover:text-blue-500 transition-colors group"
+                    onClick={() => setReturnDisplayMode(v => ((v + 1) % 3) as 0 | 1 | 2)}
+                    title="點擊切換"
+                  >
+                    {returnDisplayMode === 1 ? '年化報酬 (XIRR)' : returnDisplayMode === 2 ? '年化報酬 (CAGR)' : '損益狀況'}
+                    <span className="ml-1 text-slate-300 group-hover:text-blue-400">⇄</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -194,21 +358,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ portfolio, onNavigate, onR
                     </td>
                     <td className="px-8 py-5">
                       <div className="font-mono text-sm font-bold text-slate-800">{formatNum(h.totalQuantity)}</div>
-                      <div className="text-xs text-slate-400">${formatNum(h.currentMarketValueUSD, { maximumFractionDigits: 0 })}</div>
+                      <div className="text-xs text-slate-400">{fmtMoney(h.currentMarketValueUSD)}</div>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="font-mono text-sm font-bold text-slate-800">
-                        {h.symbol.includes('.TW') ? 'NT$ ' : '$ '}
-                        {formatNum((h.symbol.includes('.TW') ? h.currentPrice * (portfolio?.exchangeRate || 32.4) : h.currentPrice), { maximumFractionDigits: 2 })}
-                      </div>
+                      <div className="font-mono text-sm font-bold text-slate-800">{fmtPrice(h)}</div>
                     </td>
                     <td className="px-8 py-5">
-                      <div className={`font-mono text-sm font-bold ${h.gainUSD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {h.gainUSD >= 0 ? '+' : ''}{formatNum(h.gainUSD, { maximumFractionDigits: 0 })}
-                      </div>
-                      <div className={`text-[10px] font-bold ${h.gainPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        ({(h.gainPercent || 0).toFixed(2)}%)
-                      </div>
+                      {returnDisplayMode !== 0 ? (() => {
+                        const annReturn = returnDisplayMode === 1 ? getAnnualizedReturn(h) : getHoldingCAGR(h);
+                        const label = returnDisplayMode === 1 ? 'XIRR' : 'CAGR';
+                        return (
+                          <div className="flex flex-col items-end">
+                            <span className={`text-sm font-bold font-mono ${h.gainPercent >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {h.gainPercent >= 0 ? '+' : ''}{h.gainPercent.toFixed(2)}%
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${annReturn && annReturn >= 0 ? 'text-green-600/70' : 'text-red-500/70'}`}>
+                              {annReturn !== null ? `${annReturn >= 0 ? '+' : ''}${annReturn.toFixed(1)}% ${label}` : '累積過短'}
+                            </span>
+                          </div>
+                        );
+                      })() : (
+                        <>
+                          <div className={`font-mono text-sm font-bold ${h.gainUSD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {h.gainUSD >= 0 ? '+' : '-'}{fmtMoney(Math.abs(h.gainUSD))}
+                          </div>
+                          <div className={`text-[10px] font-bold ${h.gainPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            ({(h.gainPercent || 0).toFixed(2)}%)
+                          </div>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}

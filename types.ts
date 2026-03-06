@@ -9,6 +9,7 @@ export interface PurchaseRecord {
   quantity: number;
   currency: Currency;
   type: "BUY" | "SELL";
+  twdCost?: number; // Exactly how much TWD was spent/received for this transaction
 }
 
 export interface SymbolHolding {
@@ -40,6 +41,7 @@ export interface PredictionPoint {
   year: number;
   cumulativeInvestment: number;
   portfolioValue: number;
+  baselineValue: number;
   gainLoss: number;
   gainLossPercent: number;
 }
